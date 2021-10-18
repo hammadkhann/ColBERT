@@ -1,9 +1,11 @@
 import string
 import torch
 import torch.nn as nn
+import numpy as np
 
 from transformers import BertPreTrainedModel, BertModel, BertTokenizerFast
 from colbert.parameters import DEVICE
+from transformers import AutoModel
 
 
 class ColBERT(BertPreTrainedModel):
@@ -21,11 +23,12 @@ class ColBERT(BertPreTrainedModel):
 
         if self.mask_punctuation:
             self.tokenizer = BertTokenizerFast.from_pretrained('bert-base-uncased')
+
             self.skiplist = {w: True
                              for symbol in string.punctuation
                              for w in [symbol, self.tokenizer.encode(symbol, add_special_tokens=False)[0]]}
 
-        self.bert = BertModel(config)
+        self.bert = AutoModel.from_pretrained('Luyu/condenser')
         self.linear = nn.Linear(config.hidden_size, dim, bias=False)
 
         self.init_weights()
@@ -37,8 +40,7 @@ class ColBERT(BertPreTrainedModel):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
         Q = self.bert(input_ids, attention_mask=attention_mask)[0]
         Q = self.linear(Q)
-
-        return torch.nn.functional.normalize(Q, p=2, dim=2)
+        return torch.nn.functional.normalize(Q, p=2, dim=2)  # , input_ids
 
     def doc(self, input_ids, attention_mask, keep_dims=True):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
@@ -61,7 +63,7 @@ class ColBERT(BertPreTrainedModel):
             return (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
 
         assert self.similarity_metric == 'l2'
-        return (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1))**2).sum(-1)).max(-1).values.sum(-1)
+        return (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1)) ** 2).sum(-1)).max(-1).values.sum(-1)
 
     def mask(self, input_ids):
         mask = [[(x not in self.skiplist) and (x != 0) for x in d] for d in input_ids.cpu().tolist()]
