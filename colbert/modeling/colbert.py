@@ -1,7 +1,7 @@
 import string
 import torch
 import torch.nn as nn
-
+import numpy as np
 from transformers import BertPreTrainedModel, BertModel, BertTokenizerFast
 from colbert.parameters import DEVICE
 
@@ -31,14 +31,21 @@ class ColBERT(BertPreTrainedModel):
         self.init_weights()
 
     def forward(self, Q, D):
-        return self.score(self.query(*Q), self.doc(*D))
+        alpha = 0.6
+        Q, q_input_ids = self.query(*Q)
+        D, d_input_ids = self.doc(*D)
+        return alpha * self.score(Q, D) + (1-alpha) * self.tensor_intersect(q_input_ids, d_input_ids)
+
+    @staticmethod
+    def tensor_intersect(Q, D):
+        return len(np.intersect1d(Q.cpu().detach().numpy(), D.cpu().detach().numpy()))
 
     def query(self, input_ids, attention_mask):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
         Q = self.bert(input_ids, attention_mask=attention_mask)[0]
         Q = self.linear(Q)
 
-        return torch.nn.functional.normalize(Q, p=2, dim=2)
+        return torch.nn.functional.normalize(Q, p=2, dim=2), input_ids
 
     def doc(self, input_ids, attention_mask, keep_dims=True):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
@@ -54,7 +61,7 @@ class ColBERT(BertPreTrainedModel):
             D, mask = D.cpu().to(dtype=torch.float16), mask.cpu().bool().squeeze(-1)
             D = [d[mask[idx]] for idx, d in enumerate(D)]
 
-        return D
+        return D, input_ids
 
     def score(self, Q, D):
         if self.similarity_metric == 'cosine':

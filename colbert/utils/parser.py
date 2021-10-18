@@ -1,6 +1,6 @@
 import os
 import copy
-import faiss
+#import faiss
 
 from argparse import ArgumentParser
 
@@ -99,13 +99,13 @@ class Arguments():
 
         args.nranks, args.distributed = distributed.init(args.rank)
 
-        args.nthreads = int(max(os.cpu_count(), faiss.omp_get_max_threads()) * 0.8)
-        args.nthreads = max(1, args.nthreads // args.nranks)
+        #args.nthreads = int(max(os.cpu_count(), faiss.omp_get_max_threads()) * 0.8)
+        #args.nthreads = max(1, args.nthreads // args.nranks)
 
         if args.nranks > 1:
             print_message(f"#> Restricting number of threads for FAISS to {args.nthreads} per process",
                           condition=(args.rank == 0))
-            faiss.omp_set_num_threads(args.nthreads)
+            #faiss.omp_set_num_threads(args.nthreads)
 
         Run.init(args.rank, args.root, args.experiment, args.run)
         Run._log_args(args)
