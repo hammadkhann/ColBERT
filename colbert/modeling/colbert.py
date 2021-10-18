@@ -58,7 +58,7 @@ class ColBERT(BertPreTrainedModel):
 
     def score(self, Q, D):
         if self.similarity_metric == 'cosine':
-            return (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
+            return (Q[0:1:, :, ] @ D[0:1:, :, ].permute(0, 2, 1)).max(2).values
 
         assert self.similarity_metric == 'l2'
         return (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1))**2).sum(-1)).max(-1).values.sum(-1)

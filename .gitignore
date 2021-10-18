@@ -13,3 +13,7 @@ __pycache__/
 
 # mac
 .DS_Store
+triples.train.small.tsv.10k
+*.xml
+*.iml
+*.jsonl
