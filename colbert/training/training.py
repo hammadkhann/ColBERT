@@ -13,7 +13,7 @@ from colbert.training.lazy_batcher import LazyBatcher
 from colbert.training.eager_batcher import EagerBatcher
 from colbert.parameters import DEVICE
 
-from colbert.modeling.colbert import ColBERT
+from colbert.modeling.colbert import ColCondenser
 from colbert.utils.utils import print_message
 from colbert.training.utils import print_progress, manage_checkpoints
 
@@ -40,7 +40,7 @@ def train(args):
     if args.rank not in [-1, 0]:
         torch.distributed.barrier()
 
-    colbert = ColBERT.from_pretrained('Luyu/condenser',  # 'bert-base-uncased',
+    colbert = ColCondenser.from_pretrained('Luyu/condenser',
                                       query_maxlen=args.query_maxlen,
                                       doc_maxlen=args.doc_maxlen,
                                       dim=args.dim,

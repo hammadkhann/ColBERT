@@ -3,15 +3,15 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from transformers import BertPreTrainedModel, BertModel, BertTokenizerFast
+from transformers import BertPreTrainedModel, BertTokenizerFast
 from colbert.parameters import DEVICE
 from transformers import AutoModel
 
 
-class ColBERT(BertPreTrainedModel):
+class ColCondenser(BertPreTrainedModel):
     def __init__(self, config, query_maxlen, doc_maxlen, mask_punctuation, dim=128, similarity_metric='cosine'):
 
-        super(ColBERT, self).__init__(config)
+        super(ColCondenser, self).__init__(config)
 
         self.query_maxlen = query_maxlen
         self.doc_maxlen = doc_maxlen
