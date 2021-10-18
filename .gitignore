@@ -13,3 +13,7 @@ __pycache__/
 
 # mac
 .DS_Store
+*.xml
+*.jsonl
+*.10k
+*.iml
