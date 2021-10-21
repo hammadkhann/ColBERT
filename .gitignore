@@ -21,3 +21,4 @@ __pycache__/
 .idea/vcs.xml
 *.10k
 *.jsonl
+cls_baseline_colbert-600.dnn
