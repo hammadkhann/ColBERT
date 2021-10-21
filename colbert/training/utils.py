@@ -28,14 +28,14 @@ def manage_checkpoints(args, colbert, optimizer, batch_idx):
         save_checkpoint(name, 0, batch_idx, colbert, optimizer, arguments)
 
 
-def autoopen(filename, mode='rb'):
+def autoopen(filename, mode='rb', **kwargs):
     """
     A drop-in for open() that applies automatic compression for .gz and .bz2 file extensions
     """
     if filename.endswith(".gz"):
         import gzip
-        return gzip.open(filename, mode)
+        return gzip.open(filename, mode, **kwargs)
     elif filename.endswith(".bz2"):
         import bz2
-        return bz2.open(filename, mode)
-    return open(filename, mode)
+        return bz2.open(filename, mode, **kwargs)
+    return open(filename, mode, **kwargs)
