@@ -93,6 +93,16 @@ def train(args):
 
         for queries, passages in BatchSteps:
             with amp.context():
+                # print(np.ndim(queries))
+                # print(np.ndim(passages))#.shape)
+                print(queries[0].shape)
+                print(queries[1].shape)
+                print(passages[0].shape)
+                print(passages[1].shape)
+                print(colbert(queries, passages).shape)  # torch.Size([32])
+                # print(colbert(queries, passages).view(2, -1).shape)  # torch.Size([2, 16])
+                # print(colbert(queries, passages).view(2, -1).permute(1, 0).shape)  # torch.Size([16, 2])
+                # scores = colbert(queries, passages, 1).view(2, -1).permute(1, 0)
                 scores = colbert(queries, passages).view(2, -1).permute(1, 0)
                 loss = criterion(scores, labels[:scores.size(0)])
                 loss = loss / args.accumsteps

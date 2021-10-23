@@ -17,3 +17,5 @@ triples.train.small.tsv.10k
 *.xml
 *.iml
 *.jsonl
+colbert/cls_baseline_colbert-600.dnn
+cls_baseline_colbert-600.dnn
