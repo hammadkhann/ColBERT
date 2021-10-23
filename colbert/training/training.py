@@ -93,11 +93,15 @@ def train(args):
 
         for queries, passages in BatchSteps:
             with amp.context():
-                mask_Q = torch.ones(args.query_maxlen, dtype=torch.long)
-                mask_D = torch.ones(args.doc_maxlen, dtype=torch.long)
-                mask_Q[0] = 0
-                mask_D[0] = 0
-                scores = colbert(queries, passages, mask_Q, mask_D).view(2, -1).permute(1, 0)
+                # mask_Q = torch.ones(args.query_maxlen, dtype=torch.long)
+                # mask_D = torch.ones(args.doc_maxlen, dtype=torch.long)
+                # mask_Q[0], mask_D[0] = 0, 0
+
+                cls_mask_Q = torch.zeros(args.query_maxlen, dtype=torch.long)
+                cls_mask_D = torch.zeros(args.doc_maxlen, dtype=torch.long)
+                cls_mask_Q[0], cls_mask_D[0] = 1, 1
+                # scores = colbert(queries, passages, mask_Q, mask_D).view(2, -1).permute(1, 0)
+                scores = colbert(queries, passages, cls_mask_Q, cls_mask_D).view(2, -1).permute(1, 0)
                 loss = criterion(scores, labels[:scores.size(0)])
                 loss = loss / args.accumsteps
 
