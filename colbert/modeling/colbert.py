@@ -30,8 +30,8 @@ class ColBERT(BertPreTrainedModel):
 
         self.init_weights()
 
-    def forward(self, Q, D):
-        return self.score(self.query(*Q), self.doc(*D))
+    def forward(self, Q, D, Q_mask=None, D_mask=None):
+        return self.score(self.query(*Q), self.doc(*D), Q_mask, D_mask)
 
     def query(self, input_ids, attention_mask):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
@@ -56,12 +56,13 @@ class ColBERT(BertPreTrainedModel):
 
         return D
 
-    def score(self, Q, D, mask=None):
+    def score(self, Q, D, Q_mask=None, D_mask=None):
         if self.similarity_metric == 'cosine':
-            if mask is not None:
-                Q = Q[:, mask, :]
-                D = D[:, mask, :]
-            return (Q @ D.permute(0, 2, 1)).max(2).values
+            if Q_mask is not None:
+                Q = Q[:, Q_mask, :]
+            if D_mask is not None:
+                D = D[:, D_mask, :]
+            return (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
 
         assert self.similarity_metric == 'l2'
         return (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1))**2).sum(-1)).max(-1).values.sum(-1)
