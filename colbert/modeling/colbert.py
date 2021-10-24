@@ -1,6 +1,7 @@
 import string
 import torch
 import torch.nn as nn
+import numpy as np
 
 from transformers import BertPreTrainedModel, BertModel, BertTokenizerFast
 from colbert.parameters import DEVICE
@@ -31,14 +32,21 @@ class ColBERT(BertPreTrainedModel):
         self.init_weights()
 
     def forward(self, Q, D):
-        return self.score(self.query(*Q), self.doc(*D))
+        Q, qids = self.query(*Q)
+        D, dids = self.doc(*D)
+        ct = self.tensor_intersect(qids, dids)
+        return self.score(Q, D, ct)
+
+    @staticmethod
+    def tensor_intersect(Q, D):
+        return np.intersect1d(Q.cpu().detach().numpy(), D.cpu().detach().numpy())
 
     def query(self, input_ids, attention_mask):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
         Q = self.bert(input_ids, attention_mask=attention_mask)[0]
         Q = self.linear(Q)
 
-        return torch.nn.functional.normalize(Q, p=2, dim=2)
+        return torch.nn.functional.normalize(Q, p=2, dim=2), input_ids
 
     def doc(self, input_ids, attention_mask, keep_dims=True):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
@@ -54,14 +62,17 @@ class ColBERT(BertPreTrainedModel):
             D, mask = D.cpu().to(dtype=torch.float16), mask.cpu().bool().squeeze(-1)
             D = [d[mask[idx]] for idx, d in enumerate(D)]
 
-        return D
+        return D, input_ids
 
-    def score(self, Q, D):
+    def score(self, Q, D, ct):
         if self.similarity_metric == 'cosine':
-            return (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
+            CLS = (Q[0:1:, :, ] @ D[0:1:, :, ].permute(0, 2, 1)).max(2).values.sum(1)
+            common_token_sim = (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
+            return CLS + common_token_sim
+                   #(Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
 
-        assert self.similarity_metric == 'l2'
-        return (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1))**2).sum(-1)).max(-1).values.sum(-1)
+        # assert self.similarity_metric == 'l2'
+        # return (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1))**2).sum(-1)).max(-1).values.sum(-1)
 
     def mask(self, input_ids):
         mask = [[(x not in self.skiplist) and (x != 0) for x in d] for d in input_ids.cpu().tolist()]
