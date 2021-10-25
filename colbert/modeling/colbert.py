@@ -28,7 +28,7 @@ class ColBERT(BertPreTrainedModel):
                              for symbol in string.punctuation
                              for w in [symbol, self.tokenizer.encode(symbol, add_special_tokens=False)[0]]}
 
-        self.bert = AutoModel.from_pretrained('Luyu/condenser')
+        self.bert = AutoModel.from_pretrained('Luyu/co-condenser-wiki')
         self.linear = nn.Linear(config.hidden_size, dim, bias=False)
 
         self.init_weights()
