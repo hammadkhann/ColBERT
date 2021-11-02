@@ -18,3 +18,5 @@ __pycache__/
 *.10k
 *.iml
 hard_negatives_triples.tsv
+hard_negatives_triples_10k.tsv
+*.tsv
