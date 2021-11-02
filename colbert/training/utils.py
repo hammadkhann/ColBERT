@@ -1,6 +1,6 @@
 import os
 import torch
-
+from torch import Tensor, device
 from colbert.utils.runs import Run
 from colbert.utils.utils import print_message, save_checkpoint
 from colbert.parameters import SAVED_CHECKPOINTS
@@ -26,3 +26,17 @@ def manage_checkpoints(args, colbert, optimizer, batch_idx):
     if batch_idx in SAVED_CHECKPOINTS:
         name = os.path.join(path, "colbert-{}.dnn".format(batch_idx))
         save_checkpoint(name, 0, batch_idx, colbert, optimizer, arguments)
+
+
+def pairwise_dot_score(a: Tensor, b: Tensor):
+    """
+   Computes the pairwise dot-product dot_prod(a[i], b[i])
+   :return: Vector with res[i] = dot_prod(a[i], b[i])
+   """
+    if not isinstance(a, torch.Tensor):
+        a = torch.tensor(a)
+
+    if not isinstance(b, torch.Tensor):
+        b = torch.tensor(b)
+
+    return (a * b).sum(dim=-1)
