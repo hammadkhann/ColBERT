@@ -17,3 +17,4 @@ __pycache__/
 *.jsonl
 *.10k
 *.iml
+hard_negatives_triples.tsv
