@@ -1,0 +1,44 @@
+Index: colbert/training/training.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import os\r\nimport random\r\nimport time\r\nimport torch\r\nimport torch.nn as nn\r\nimport numpy as np\r\n\r\nfrom transformers import AdamW\r\nfrom colbert.utils.runs import Run\r\nfrom colbert.utils.amp import MixedPrecisionManager\r\n\r\nfrom colbert.training.lazy_batcher import LazyBatcher\r\nfrom colbert.training.eager_batcher import EagerBatcher\r\nfrom colbert.parameters import DEVICE\r\n\r\nfrom colbert.modeling.colbert import ColBERT\r\nfrom colbert.utils.utils import print_message\r\nfrom colbert.training.utils import print_progress, manage_checkpoints\r\n\r\nfrom losses import MarginMSELoss\r\n\r\ndef train(args):\r\n    random.seed(12345)\r\n    np.random.seed(12345)\r\n    torch.manual_seed(12345)\r\n    if args.distributed:\r\n        torch.cuda.manual_seed_all(12345)\r\n\r\n    if args.distributed:\r\n        assert args.bsize % args.nranks == 0, (args.bsize, args.nranks)\r\n        assert args.accumsteps == 1\r\n        args.bsize = args.bsize // args.nranks\r\n\r\n        print(\"Using args.bsize =\", args.bsize, \"(per process) and args.accumsteps =\", args.accumsteps)\r\n\r\n    if args.lazy:\r\n        reader = LazyBatcher(args, (0 if args.rank == -1 else args.rank), args.nranks)\r\n    else:\r\n        reader = EagerBatcher(args, (0 if args.rank == -1 else args.rank), args.nranks)\r\n\r\n    if args.rank not in [-1, 0]:\r\n        torch.distributed.barrier()\r\n\r\n    colbert = ColBERT.from_pretrained('bert-base-uncased',\r\n                                      query_maxlen=args.query_maxlen,\r\n                                      doc_maxlen=args.doc_maxlen,\r\n                                      dim=args.dim,\r\n                                      similarity_metric=args.similarity,\r\n                                      mask_punctuation=args.mask_punctuation)\r\n\r\n    if args.checkpoint is not None:\r\n        assert args.resume_optimizer is False, \"TODO: This would mean reload optimizer too.\"\r\n        print_message(f\"#> Starting from checkpoint {args.checkpoint} -- but NOT the optimizer!\")\r\n\r\n        checkpoint = torch.load(args.checkpoint, map_location='cpu')\r\n\r\n        try:\r\n            colbert.load_state_dict(checkpoint['model_state_dict'])\r\n        except:\r\n            print_message(\"[WARNING] Loading checkpoint with strict=False\")\r\n            colbert.load_state_dict(checkpoint['model_state_dict'], strict=False)\r\n\r\n    if args.rank == 0:\r\n        torch.distributed.barrier()\r\n\r\n    colbert = colbert.to(DEVICE)\r\n    colbert.train()\r\n\r\n    if args.distributed:\r\n        colbert = torch.nn.parallel.DistributedDataParallel(colbert, device_ids=[args.rank],\r\n                                                            output_device=args.rank,\r\n                                                            find_unused_parameters=True)\r\n\r\n    optimizer = AdamW(filter(lambda p: p.requires_grad, colbert.parameters()), lr=args.lr, eps=1e-8)\r\n    optimizer.zero_grad()\r\n\r\n    amp = MixedPrecisionManager(args.amp)\r\n    criterion = MarginMSELoss()  # nn.CrossEntropyLoss()\r\n    labels = torch.zeros(args.bsize, dtype=torch.long, device=DEVICE)\r\n\r\n    start_time = time.time()\r\n    train_loss = 0.0\r\n\r\n    start_batch_idx = 0\r\n\r\n    if args.resume:\r\n        assert args.checkpoint is not None\r\n        start_batch_idx = checkpoint['batch']\r\n\r\n        reader.skip_to_batch(start_batch_idx, checkpoint['arguments']['bsize'])\r\n\r\n    for batch_idx, BatchSteps in zip(range(start_batch_idx, args.maxsteps), reader):\r\n        this_batch_loss = 0.0\r\n\r\n        for queries, passages in BatchSteps:\r\n            with amp.context():\r\n                scores = colbert(queries, passages).view(2, -1).permute(1, 0)\r\n                loss = criterion(scores, labels[:scores.size(0)])\r\n                loss = loss / args.accumsteps\r\n\r\n            if args.rank < 1:\r\n                print_progress(scores)\r\n\r\n            amp.backward(loss)\r\n\r\n            train_loss += loss.item()\r\n            this_batch_loss += loss.item()\r\n\r\n        amp.step(colbert, optimizer)\r\n\r\n        if args.rank < 1:\r\n            avg_loss = train_loss / (batch_idx+1)\r\n\r\n            num_examples_seen = (batch_idx - start_batch_idx) * args.bsize * args.nranks\r\n            elapsed = float(time.time() - start_time)\r\n\r\n            log_to_mlflow = (batch_idx % 20 == 0)\r\n            Run.log_metric('train/avg_loss', avg_loss, step=batch_idx, log_to_mlflow=log_to_mlflow)\r\n            Run.log_metric('train/batch_loss', this_batch_loss, step=batch_idx, log_to_mlflow=log_to_mlflow)\r\n            Run.log_metric('train/examples', num_examples_seen, step=batch_idx, log_to_mlflow=log_to_mlflow)\r\n            Run.log_metric('train/throughput', num_examples_seen / elapsed, step=batch_idx, log_to_mlflow=log_to_mlflow)\r\n\r\n            print_message(batch_idx, avg_loss)\r\n            manage_checkpoints(args, colbert, optimizer, batch_idx+1)\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/colbert/training/training.py b/colbert/training/training.py
+--- a/colbert/training/training.py	
++++ b/colbert/training/training.py	
+@@ -17,7 +17,8 @@
+ from colbert.utils.utils import print_message
+ from colbert.training.utils import print_progress, manage_checkpoints
+ 
+-from losses import MarginMSELoss
++from colbert.training.losses import MarginMSELoss
++
+ 
+ def train(args):
+     random.seed(12345)
+@@ -75,7 +76,7 @@
+     optimizer.zero_grad()
+ 
+     amp = MixedPrecisionManager(args.amp)
+-    criterion = MarginMSELoss()  # nn.CrossEntropyLoss()
++    criterion = nn.CrossEntropyLoss()
+     labels = torch.zeros(args.bsize, dtype=torch.long, device=DEVICE)
+ 
+     start_time = time.time()
+@@ -109,7 +110,7 @@
+         amp.step(colbert, optimizer)
+ 
+         if args.rank < 1:
+-            avg_loss = train_loss / (batch_idx+1)
++            avg_loss = train_loss / (batch_idx + 1)
+ 
+             num_examples_seen = (batch_idx - start_batch_idx) * args.bsize * args.nranks
+             elapsed = float(time.time() - start_time)
+@@ -121,4 +122,4 @@
+             Run.log_metric('train/throughput', num_examples_seen / elapsed, step=batch_idx, log_to_mlflow=log_to_mlflow)
+ 
+             print_message(batch_idx, avg_loss)
+-            manage_checkpoints(args, colbert, optimizer, batch_idx+1)
++            manage_checkpoints(args, colbert, optimizer, batch_idx + 1)

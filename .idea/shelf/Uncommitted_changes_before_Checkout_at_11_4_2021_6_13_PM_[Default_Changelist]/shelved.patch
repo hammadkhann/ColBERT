@@ -1,0 +1,19 @@
+Index: colbert/parameters.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import torch\r\n\r\nDEVICE = torch.device(\"cuda\")\r\n\r\n#SAVED_CHECKPOINTS = [32*1000, 100*1000, 150*1000, 200*1000, 300*1000, 400*1000]\r\n#SAVED_CHECKPOINTS += [10*1000, 20*1000, 30*1000, 40*1000, 50*1000, 60*1000, 70*1000, 80*1000, 90*1000]\r\n#SAVED_CHECKPOINTS += [25*1000, 50*1000, 75*1000]\r\nSAVED_CHECKPOINTS = [10*10, 20*10, 30*10, 40*10, 50*10, 60*10, 70*10, 80*10, 90*10]\r\n\r\nSAVED_CHECKPOINTS = set(SAVED_CHECKPOINTS)
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/colbert/parameters.py b/colbert/parameters.py
+--- a/colbert/parameters.py	(revision 566c5bc5ac2cfb83090029dd676843ad6803ad38)
++++ b/colbert/parameters.py	(date 1636049599028)
+@@ -5,6 +5,6 @@
+ #SAVED_CHECKPOINTS = [32*1000, 100*1000, 150*1000, 200*1000, 300*1000, 400*1000]
+ #SAVED_CHECKPOINTS += [10*1000, 20*1000, 30*1000, 40*1000, 50*1000, 60*1000, 70*1000, 80*1000, 90*1000]
+ #SAVED_CHECKPOINTS += [25*1000, 50*1000, 75*1000]
+-SAVED_CHECKPOINTS = [10*10, 20*10, 30*10, 40*10, 50*10, 60*10, 70*10, 80*10, 90*10]
++SAVED_CHECKPOINTS = [10*10, 20*10, 30*10, 40*10, 50*10, 60*10, 70*10, 80*10, 90*10, 100*10, 110*10, 120*10]
+ 
+ SAVED_CHECKPOINTS = set(SAVED_CHECKPOINTS)
+\ No newline at end of file

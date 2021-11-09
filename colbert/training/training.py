@@ -17,7 +17,7 @@ from colbert.modeling.colbert import ColBERT
 from colbert.utils.utils import print_message
 from colbert.training.utils import print_progress, manage_checkpoints
 
-from losses import MarginMSELoss
+# from losses import MarginMSELoss
 
 def train(args):
     random.seed(12345)
@@ -75,7 +75,7 @@ def train(args):
     optimizer.zero_grad()
 
     amp = MixedPrecisionManager(args.amp)
-    criterion = MarginMSELoss()  # nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss()
     labels = torch.zeros(args.bsize, dtype=torch.long, device=DEVICE)
 
     start_time = time.time()

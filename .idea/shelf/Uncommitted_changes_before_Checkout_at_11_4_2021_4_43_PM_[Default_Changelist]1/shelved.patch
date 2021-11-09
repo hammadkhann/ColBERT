@@ -1,0 +1,52 @@
+Index: colbert/training/losses.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import utils\r\nfrom torch import nn, Tensor\r\nfrom typing import Iterable, Dict\r\n\r\nclass MarginMSELoss(nn.Module):\r\n    \"\"\"\r\n    Compute the MSE loss between the |sim(Query, Pos) - sim(Query, Neg)| and |gold_sim(Q, Pos) - gold_sim(Query, Neg)|.\r\n    By default, sim() is the dot-product.\r\n    For more details, please refer to https://arxiv.org/abs/2010.02666.\r\n    \"\"\"\r\n    def __init__(self, model, similarity_fct = utils.pairwise_dot_score):\r\n        \"\"\"\r\n        :param model: SentenceTransformerModel\r\n        :param similarity_fct:  Which similarity function to use.\r\n        \"\"\"\r\n        super(MarginMSELoss, self).__init__()\r\n        self.model = model\r\n        self.similarity_fct = similarity_fct\r\n        self.loss_fct = nn.MSELoss()\r\n\r\n    def forward(self, sentence_features: Iterable[Dict[str, Tensor]], labels: Tensor):\r\n        # sentence_features: query, positive passage, negative passage\r\n        reps = [self.model(sentence_feature)['sentence_embedding'] for sentence_feature in sentence_features]\r\n        embeddings_query = reps[0]\r\n        embeddings_pos = reps[1]\r\n        embeddings_neg = reps[2]\r\n\r\n        scores_pos = self.similarity_fct(embeddings_query, embeddings_pos)\r\n        scores_neg = self.similarity_fct(embeddings_query, embeddings_neg)\r\n        margin_pred = scores_pos - scores_neg\r\n\r\n        return self.loss_fct(margin_pred, labels)
+===================================================================
+diff --git a/colbert/training/losses.py b/colbert/training/losses.py
+--- a/colbert/training/losses.py	
++++ b/colbert/training/losses.py	
+@@ -1,14 +1,16 @@
+-import utils
++from colbert.training import utils
+ from torch import nn, Tensor
+ from typing import Iterable, Dict
+ 
++
+ class MarginMSELoss(nn.Module):
+     """
+     Compute the MSE loss between the |sim(Query, Pos) - sim(Query, Neg)| and |gold_sim(Q, Pos) - gold_sim(Query, Neg)|.
+     By default, sim() is the dot-product.
+     For more details, please refer to https://arxiv.org/abs/2010.02666.
+     """
+-    def __init__(self, model, similarity_fct = utils.pairwise_dot_score):
++
++    def __init__(self, model, similarity_fct=utils.pairwise_dot_score):
+         """
+         :param model: SentenceTransformerModel
+         :param similarity_fct:  Which similarity function to use.
+@@ -29,4 +31,4 @@
+         scores_neg = self.similarity_fct(embeddings_query, embeddings_neg)
+         margin_pred = scores_pos - scores_neg
+ 
+-        return self.loss_fct(margin_pred, labels)
+\ No newline at end of file
++        return self.loss_fct(margin_pred, labels)
+Index: colbert/parameters.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import torch\r\n\r\nDEVICE = torch.device(\"cuda\")\r\n\r\n#SAVED_CHECKPOINTS = [32*1000, 100*1000, 150*1000, 200*1000, 300*1000, 400*1000]\r\n#SAVED_CHECKPOINTS += [10*1000, 20*1000, 30*1000, 40*1000, 50*1000, 60*1000, 70*1000, 80*1000, 90*1000]\r\n#SAVED_CHECKPOINTS += [25*1000, 50*1000, 75*1000]\r\nSAVED_CHECKPOINTS = [10*10, 20*10, 30*10, 40*10, 50*10, 60*10, 70*10, 80*10, 90*10]\r\n\r\nSAVED_CHECKPOINTS = set(SAVED_CHECKPOINTS)\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/colbert/parameters.py b/colbert/parameters.py
+--- a/colbert/parameters.py	
++++ b/colbert/parameters.py	
+@@ -5,6 +5,6 @@
+ #SAVED_CHECKPOINTS = [32*1000, 100*1000, 150*1000, 200*1000, 300*1000, 400*1000]
+ #SAVED_CHECKPOINTS += [10*1000, 20*1000, 30*1000, 40*1000, 50*1000, 60*1000, 70*1000, 80*1000, 90*1000]
+ #SAVED_CHECKPOINTS += [25*1000, 50*1000, 75*1000]
+-SAVED_CHECKPOINTS = [10*10, 20*10, 30*10, 40*10, 50*10, 60*10, 70*10, 80*10, 90*10]
++SAVED_CHECKPOINTS = [10*10, 20*10, 30*10, 40*10, 50*10, 60*10, 70*10, 80*10, 90*10, 100*10, 110*10, 120*10]
+ 
+ SAVED_CHECKPOINTS = set(SAVED_CHECKPOINTS)
