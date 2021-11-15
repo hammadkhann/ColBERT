@@ -101,10 +101,10 @@ def train(args):
                 cls_mask_D = torch.zeros(args.doc_maxlen, dtype=torch.long)
                 cls_mask_Q[0], cls_mask_D[0] = 1, 1
 
-                scores_tok = colbert(queries, passages, mask_Q, mask_D).view(2, -1).permute(1, 0)
-                scores_cls = colbert(queries, passages, cls_mask_Q, cls_mask_D).view(2, -1).permute(1, 0)
+                scores = colbert(queries, passages, mask_Q, mask_D, cls_mask_Q, cls_mask_D, 0).view(2, -1).permute(1, 0)
+                #scores_cls = colbert(queries, passages, cls_mask_Q, cls_mask_D).view(2, -1).permute(1, 0)
 
-                scores = scores_cls + scores_tok
+                # scores = scores_cls + scores_tok
                 loss = criterion(scores, labels[:scores.size(0)])
                 loss = loss / args.accumsteps
 

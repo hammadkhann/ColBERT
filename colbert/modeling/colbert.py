@@ -1,6 +1,7 @@
 import string
 import torch
 import torch.nn as nn
+import numpy as np
 
 from transformers import BertPreTrainedModel, BertModel, BertTokenizerFast
 from colbert.parameters import DEVICE
@@ -30,15 +31,22 @@ class ColBERT(BertPreTrainedModel):
 
         self.init_weights()
 
-    def forward(self, Q, D, Q_mask=None, D_mask=None):
-        return self.score(self.query(*Q), self.doc(*D), Q_mask, D_mask)
+    def forward(self, Q, D, Q_mask=None, D_mask=None, cls_Q_mask=None, cls_D_mask=None, token_overlap=None):
+        Q, q_input_ids = self.query(*Q)
+        D, d_input_ids = self.doc(*D)
+        token_overlap = self.tensor_intersect(q_input_ids, d_input_ids)
+        return self.score(Q, D, Q_mask, D_mask, cls_Q_mask, cls_D_mask, token_overlap)
+
+    @staticmethod
+    def tensor_intersect(Q, D):
+        return len(np.intersect1d(Q.cpu().detach().numpy(), D.cpu().detach().numpy()))
 
     def query(self, input_ids, attention_mask):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
         Q = self.bert(input_ids, attention_mask=attention_mask)[0]
         Q = self.linear(Q)
 
-        return torch.nn.functional.normalize(Q, p=2, dim=2)
+        return torch.nn.functional.normalize(Q, p=2, dim=2), input_ids
 
     def doc(self, input_ids, attention_mask, keep_dims=True):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
@@ -54,15 +62,36 @@ class ColBERT(BertPreTrainedModel):
             D, mask = D.cpu().to(dtype=torch.float16), mask.cpu().bool().squeeze(-1)
             D = [d[mask[idx]] for idx, d in enumerate(D)]
 
-        return D
+        return D, input_ids
 
-    def score(self, Q, D, Q_mask=None, D_mask=None):
+    def old_score(self, Q, D, Q_mask=None, D_mask=None):
         if self.similarity_metric == 'cosine':
             if Q_mask is not None:
                 Q = Q[:, Q_mask, :]
             if D_mask is not None:
                 D = D[:, D_mask, :]
             return (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
+
+        assert self.similarity_metric == 'l2'
+        return (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1)) ** 2).sum(-1)).max(-1).values.sum(-1)
+
+    def score(self, Q, D, Q_mask=None, D_mask=None, cls_Q_mask=None, cls_D_mask=None, token_overlap=None):
+        if self.similarity_metric == 'cosine':
+
+            if Q_mask is not None:
+                Q_tok = Q[:, Q_mask, :]
+            if D_mask is not None:
+                D_tok = D[:, D_mask, :]
+            if cls_Q_mask is not None:
+                Q_cls = Q[:, cls_Q_mask, :]
+            if cls_D_mask is not None:
+                D_cls = D[:, cls_D_mask, :]
+
+            score_tok = (Q_tok @ D_tok.permute(0, 2, 1)).max(2).values.sum(1)
+            score_cls = (Q_cls @ D_cls.permute(0, 2, 1)).max(2).values.sum(1)
+
+            return 0.4 * score_cls + 0.3 * score_tok + 0.3 * (token_overlap / 16)
+            # (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
 
         assert self.similarity_metric == 'l2'
         return (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1))**2).sum(-1)).max(-1).values.sum(-1)
