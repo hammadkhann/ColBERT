@@ -22,3 +22,4 @@ __pycache__/
 *.10k
 *.jsonl
 cls_baseline_colbert-600.dnn
+*.tsv
