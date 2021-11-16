@@ -6,7 +6,7 @@ from colbert.utils.utils import print_message
 from colbert.modeling.tokenization import QueryTokenizer, DocTokenizer, tensorize_triples
 
 from colbert.utils.runs import Run
-
+from colbert.training.utils import autoopen
 
 class LazyBatcher():
     def __init__(self, args, rank=0, nranks=1):
@@ -32,7 +32,7 @@ class LazyBatcher():
 
         triples = []
 
-        with open(path) as f:
+        with autoopen(path, "rt") as f:
             for line_idx, line in enumerate(f):
                 if line_idx % nranks == rank:
                     qid, pos, neg = ujson.loads(line)
