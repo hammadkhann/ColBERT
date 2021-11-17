@@ -17,3 +17,4 @@ __pycache__/
 *.xml
 *.iml
 *.jsonl
+*.tsv
