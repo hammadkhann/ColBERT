@@ -6,6 +6,7 @@ from colbert.utils.utils import print_message
 from colbert.modeling.tokenization import QueryTokenizer, DocTokenizer, tensorize_triples
 
 from colbert.utils.runs import Run
+from colbert.training.utils import autoopen
 
 
 class EagerBatcher():
@@ -21,7 +22,7 @@ class EagerBatcher():
         self._reset_triples()
 
     def _reset_triples(self):
-        self.reader = open(self.triples_path, mode='r', encoding="utf-8")
+        self.reader = autoopen(self.triples_path, mode='rt', encoding="utf-8")
         self.position = 0
 
     def __iter__(self):
