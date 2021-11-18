@@ -46,7 +46,6 @@ class ColBERT(BertPreTrainedModel):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
         Q = self.bert(input_ids, attention_mask=attention_mask)[0]
         Q = self.linear(Q)
-
         return torch.nn.functional.normalize(Q, p=2, dim=2), input_ids
 
     def doc(self, input_ids, attention_mask, keep_dims=True):
