@@ -39,7 +39,10 @@ class ColBERT(BertPreTrainedModel):
 
     @staticmethod
     def tensor_intersect(Q, D):
-        return len(np.intersect1d(Q.cpu().detach().numpy(), D.cpu().detach().numpy()))
+        D = D[1].cpu().detach().numpy()
+        Q = Q[1].cpu().detach().numpy()
+        Q = Q[~np.isin(Q, [103])]
+        return 10*(len(np.intersect1d(Q, D)) / np.count_nonzero(D))
 
     def query(self, input_ids, attention_mask):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
@@ -87,11 +90,10 @@ class ColBERT(BertPreTrainedModel):
             if cls_D_mask is not None:
                 D_cls = D[:, cls_D_mask, :]
 
-            score_tok = (Q_tok @ D_tok.permute(0, 2, 1)).max(2).values.sum(1)
+            score_token = (Q_tok @ D_tok.permute(0, 2, 1)).max(2).values.sum(1)
             score_cls = (Q_cls @ D_cls.permute(0, 2, 1)).max(2).values.sum(1)
 
-            return 0.4 * score_cls + 0.3 * score_tok + 0.3 * (token_overlap / 16)
-            # (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
+            return (0.5*score_cls) + (0.3*score_token) + (0.2*token_overlap)
 
         assert self.similarity_metric == 'l2'
         return (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1))**2).sum(-1)).max(-1).values.sum(-1)
