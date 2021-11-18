@@ -30,15 +30,32 @@ class ColBERT(BertPreTrainedModel):
 
         self.init_weights()
 
+    # def forward(self, Q, D):
+    #     alpha = 0.6
+    #     Q, q_input_ids = self.query(*Q)
+    #     D, d_input_ids = self.doc(*D)
+    #     print(len(q_input_ids))
+    #     print(len(d_input_ids))
+    #     print(d_input_ids)
+    #     print(self.tensor_intersect(q_input_ids, d_input_ids))
+    #     print(self.score(Q, D))
+    #     print(Q.shape)
+    #     print(D.shape)
+    #     return alpha * self.score(Q, D, q_input) + (1-alpha) * self.tensor_intersect(q_input_ids, d_input_ids)
+
     def forward(self, Q, D):
-        alpha = 0.6
         Q, q_input_ids = self.query(*Q)
         D, d_input_ids = self.doc(*D)
-        return alpha * self.score(Q, D) + (1-alpha) * self.tensor_intersect(q_input_ids, d_input_ids)
+        return self.score(Q, D, q_input_ids, d_input_ids)
 
     @staticmethod
     def tensor_intersect(Q, D):
-        return len(np.intersect1d(Q.cpu().detach().numpy(), D.cpu().detach().numpy()))
+        D = D[1].cpu().detach().numpy()
+        Q = Q[1].cpu().detach().numpy()
+        Q = Q[~np.isin(Q, [103])]
+        # query_len = len(Q)
+        # print(query_len, doc_len, len(np.intersect1d(Q, D)))
+        return len(np.intersect1d(Q, D))/np.count_nonzero(D)
 
     def query(self, input_ids, attention_mask):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
@@ -63,9 +80,11 @@ class ColBERT(BertPreTrainedModel):
 
         return D, input_ids
 
-    def score(self, Q, D):
+    def score(self, Q, D, q_input_ids, d_input_ids):
         if self.similarity_metric == 'cosine':
-            return (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
+            alpha = 0.6
+            token_overlap = self.tensor_intersect(q_input_ids, d_input_ids)
+            return alpha * (Q @ D.permute(0, 2, 1)).max(2).values.sum(1) + (1-alpha)*token_overlap
 
         assert self.similarity_metric == 'l2'
         return (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1))**2).sum(-1)).max(-1).values.sum(-1)
