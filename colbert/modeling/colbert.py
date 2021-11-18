@@ -30,19 +30,6 @@ class ColBERT(BertPreTrainedModel):
 
         self.init_weights()
 
-    # def forward(self, Q, D):
-    #     alpha = 0.6
-    #     Q, q_input_ids = self.query(*Q)
-    #     D, d_input_ids = self.doc(*D)
-    #     print(len(q_input_ids))
-    #     print(len(d_input_ids))
-    #     print(d_input_ids)
-    #     print(self.tensor_intersect(q_input_ids, d_input_ids))
-    #     print(self.score(Q, D))
-    #     print(Q.shape)
-    #     print(D.shape)
-    #     return alpha * self.score(Q, D, q_input) + (1-alpha) * self.tensor_intersect(q_input_ids, d_input_ids)
-
     def forward(self, Q, D):
         Q, q_input_ids = self.query(*Q)
         D, d_input_ids = self.doc(*D)
@@ -53,8 +40,6 @@ class ColBERT(BertPreTrainedModel):
         D = D[1].cpu().detach().numpy()
         Q = Q[1].cpu().detach().numpy()
         Q = Q[~np.isin(Q, [103])]
-        # query_len = len(Q)
-        # print(query_len, doc_len, len(np.intersect1d(Q, D)))
         return len(np.intersect1d(Q, D))/np.count_nonzero(D)
 
     def query(self, input_ids, attention_mask):
