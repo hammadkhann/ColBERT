@@ -40,7 +40,7 @@ class ColBERT(BertPreTrainedModel):
         D = D[1].cpu().detach().numpy()
         Q = Q[1].cpu().detach().numpy()
         Q = Q[~np.isin(Q, [103])]
-        return len(np.intersect1d(Q, D))/np.count_nonzero(D)
+        return 10*(len(np.intersect1d(Q, D))/np.count_nonzero(D))
 
     def query(self, input_ids, attention_mask):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
