@@ -1,6 +1,6 @@
 import os
 import torch
-from torch import Tensor, device
+
 from colbert.utils.runs import Run
 from colbert.utils.utils import print_message, save_checkpoint
 from colbert.parameters import SAVED_CHECKPOINTS
@@ -28,15 +28,14 @@ def manage_checkpoints(args, colbert, optimizer, batch_idx):
         save_checkpoint(name, 0, batch_idx, colbert, optimizer, arguments)
 
 
-def pairwise_dot_score(a: Tensor, b: Tensor):
+def autoopen(filename, mode='rb', **kwargs):
     """
-   Computes the pairwise dot-product dot_prod(a[i], b[i])
-   :return: Vector with res[i] = dot_prod(a[i], b[i])
-   """
-    if not isinstance(a, torch.Tensor):
-        a = torch.tensor(a)
-
-    if not isinstance(b, torch.Tensor):
-        b = torch.tensor(b)
-
-    return (a * b).sum(dim=-1)
+    A drop-in for open() that applies automatic compression for .gz and .bz2 file extensions
+    """
+    if filename.endswith(".gz"):
+        import gzip
+        return gzip.open(filename, mode, **kwargs)
+    elif filename.endswith(".bz2"):
+        import bz2
+        return bz2.open(filename, mode, **kwargs)
+    return open(filename, mode, **kwargs)
