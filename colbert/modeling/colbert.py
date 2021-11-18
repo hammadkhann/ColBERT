@@ -80,7 +80,6 @@ class ColBERT(BertPreTrainedModel):
 
     def score(self, Q, D, Q_mask=None, D_mask=None, cls_Q_mask=None, cls_D_mask=None, token_overlap=None):
         if self.similarity_metric == 'cosine':
-
             if Q_mask is not None:
                 Q_tok = Q[:, Q_mask, :]
             if D_mask is not None:
@@ -93,7 +92,7 @@ class ColBERT(BertPreTrainedModel):
             score_token = (Q_tok @ D_tok.permute(0, 2, 1)).max(2).values.sum(1)
             score_cls = (Q_cls @ D_cls.permute(0, 2, 1)).max(2).values.sum(1)
 
-            return (0.5*score_cls) + (0.3*score_token) + (0.2*token_overlap)
+            return (0.3*score_cls) + (0.5*score_token) + (0.2*token_overlap)
 
         assert self.similarity_metric == 'l2'
         return (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1))**2).sum(-1)).max(-1).values.sum(-1)
