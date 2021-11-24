@@ -17,3 +17,4 @@ triples.train.small.tsv.10k
 *.xml
 *.iml
 *.jsonl
+*.tsv
