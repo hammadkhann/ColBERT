@@ -93,7 +93,7 @@ def train(args):
 
         for queries, passages in BatchSteps:
             with amp.context():
-
+                alpha = 0.6
                 mask_Q = torch.ones(args.query_maxlen, dtype=torch.long)
                 mask_D = torch.ones(args.doc_maxlen, dtype=torch.long)
                 mask_Q[0], mask_D[0] = 0, 0
@@ -102,14 +102,20 @@ def train(args):
                 cls_mask_D = torch.zeros(args.doc_maxlen, dtype=torch.long)
                 cls_mask_Q[0], cls_mask_D[0] = 1, 1
 
-                scores = colbert(queries, passages, mask_Q, mask_D, cls_mask_Q,
-                                 cls_mask_D, 0).view(2, -1).permute(1, 0)
+                scores_token, scores_cls = colbert(queries, passages, mask_Q, mask_D, cls_mask_Q,
+                                                   cls_mask_D, 0)
 
-                loss = criterion(scores, labels[:scores.size(0)])
+                scores_token = scores_token.view(2, -1).permute(1, 0)
+                scores_cls = scores_cls.view(2, -1).permute(1, 0)
+
+                loss_cls = criterion(scores_cls, labels[:scores_cls.size(0)])
+                loss_token = criterion(scores_token, labels[:scores_token.size(0)])
+
+                loss = alpha * loss_cls + (1 - alpha) * loss_token
                 loss = loss / args.accumsteps
 
             if args.rank < 1:
-                print_progress(scores)
+                print_progress(scores_token + scores_cls)
 
             amp.backward(loss)
 
@@ -119,7 +125,7 @@ def train(args):
         amp.step(colbert, optimizer)
 
         if args.rank < 1:
-            avg_loss = train_loss / (batch_idx+1)
+            avg_loss = train_loss / (batch_idx + 1)
 
             num_examples_seen = (batch_idx - start_batch_idx) * args.bsize * args.nranks
             elapsed = float(time.time() - start_time)
@@ -131,4 +137,4 @@ def train(args):
             Run.log_metric('train/throughput', num_examples_seen / elapsed, step=batch_idx, log_to_mlflow=log_to_mlflow)
 
             print_message(batch_idx, avg_loss)
-            manage_checkpoints(args, colbert, optimizer, batch_idx+1)
+            manage_checkpoints(args, colbert, optimizer, batch_idx + 1)
