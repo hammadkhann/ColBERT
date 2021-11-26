@@ -17,7 +17,6 @@ from colbert.modeling.colbert import ColBERT
 from colbert.utils.utils import print_message
 from colbert.training.utils import print_progress, manage_checkpoints
 
-# from losses import MarginMSELoss
 
 def train(args):
     random.seed(12345)
