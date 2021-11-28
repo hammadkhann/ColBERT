@@ -39,8 +39,7 @@ class ColBERT(BertPreTrainedModel):
     def tensor_intersect(Q, D):
         D = D[1].cpu().detach().numpy()
         Q = Q[1].cpu().detach().numpy()
-        Q = Q[~np.isin(Q, [103])]
-        return 10*(len(np.intersect1d(Q, D))/np.count_nonzero(D))
+        return len(np.intersect1d(Q, D))/np.count_nonzero(D)
 
     def query(self, input_ids, attention_mask):
         input_ids, attention_mask = input_ids.to(DEVICE), attention_mask.to(DEVICE)
