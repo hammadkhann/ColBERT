@@ -27,7 +27,6 @@ class ColBERT(BertPreTrainedModel):
 
         self.bert = BertModel(config)
         self.linear = nn.Linear(config.hidden_size, dim, bias=False)
-        # self.layer_norm = nn.LayerNorm(dim)
 
         self.init_weights()
 
