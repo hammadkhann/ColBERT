@@ -13,7 +13,7 @@ from colbert.training.lazy_batcher import LazyBatcher
 from colbert.training.eager_batcher import EagerBatcher
 from colbert.parameters import DEVICE
 
-from colbert.modeling.colbert import ColBERT
+from colbert.modeling.coltacl import ColTaCL
 from colbert.utils.utils import print_message
 from colbert.training.utils import print_progress, manage_checkpoints
 
@@ -40,7 +40,7 @@ def train(args):
     if args.rank not in [-1, 0]:
         torch.distributed.barrier()
 
-    colbert = ColBERT.from_pretrained('cambridgeltl/tacl-bert-base-uncased',
+    coltacl = ColTaCL.from_pretrained('cambridgeltl/tacl-bert-base-uncased',
                                       query_maxlen=args.query_maxlen,
                                       doc_maxlen=args.doc_maxlen,
                                       dim=args.dim,
@@ -54,23 +54,23 @@ def train(args):
         checkpoint = torch.load(args.checkpoint, map_location='cpu')
 
         try:
-            colbert.load_state_dict(checkpoint['model_state_dict'])
+            coltacl.load_state_dict(checkpoint['model_state_dict'])
         except:
             print_message("[WARNING] Loading checkpoint with strict=False")
-            colbert.load_state_dict(checkpoint['model_state_dict'], strict=False)
+            coltacl.load_state_dict(checkpoint['model_state_dict'], strict=False)
 
     if args.rank == 0:
         torch.distributed.barrier()
 
-    colbert = colbert.to(DEVICE)
-    colbert.train()
+    coltacl = coltacl.to(DEVICE)
+    coltacl.train()
 
     if args.distributed:
-        colbert = torch.nn.parallel.DistributedDataParallel(colbert, device_ids=[args.rank],
+        coltacl = torch.nn.parallel.DistributedDataParallel(coltacl, device_ids=[args.rank],
                                                             output_device=args.rank,
                                                             find_unused_parameters=True)
 
-    optimizer = AdamW(filter(lambda p: p.requires_grad, colbert.parameters()), lr=args.lr, eps=1e-8)
+    optimizer = AdamW(filter(lambda p: p.requires_grad, coltacl.parameters()), lr=args.lr, eps=1e-8)
     optimizer.zero_grad()
 
     amp = MixedPrecisionManager(args.amp)
@@ -93,7 +93,7 @@ def train(args):
 
         for queries, passages in BatchSteps:
             with amp.context():
-                scores = colbert(queries, passages).view(2, -1).permute(1, 0)
+                scores = coltacl(queries, passages).view(2, -1).permute(1, 0)
                 loss = criterion(scores, labels[:scores.size(0)])
                 loss = loss / args.accumsteps
 
@@ -105,7 +105,7 @@ def train(args):
             train_loss += loss.item()
             this_batch_loss += loss.item()
 
-        amp.step(colbert, optimizer)
+        amp.step(coltacl, optimizer)
 
         if args.rank < 1:
             avg_loss = train_loss / (batch_idx+1)
@@ -120,4 +120,4 @@ def train(args):
             Run.log_metric('train/throughput', num_examples_seen / elapsed, step=batch_idx, log_to_mlflow=log_to_mlflow)
 
             print_message(batch_idx, avg_loss)
-            manage_checkpoints(args, colbert, optimizer, batch_idx+1)
+            manage_checkpoints(args, coltacl, optimizer, batch_idx+1)
